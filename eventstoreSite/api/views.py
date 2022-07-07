@@ -54,17 +54,28 @@ def eventQuery(request):
         # geting_parameters
         parameters = dict(parse_qs(urlsplit(request.get_full_path()).query))
         minutes = 10
-
-        returnedEvents = query(client, '4d4ef18a-a3ab-46f2-bf9f-31eeb699d5f0', None, True, 100)
+        limit = 10
+        position = None
+        stream = '4d4ef18a-a3ab-46f2-bf9f-31eeb699d5f0'
+        backwards = True
+        if 'newerThan' in parameters: minutes = int(parameters['newerThan'][0])
+        if 'limit' in parameters: limit = int(parameters['limit'][0])
+        if 'position' in parameters: position = int(parameters['position'][0])
+        if 'stream' in parameters: stream = parameters['stream'][0]
+        if 'backwards' in parameters: backwards = bool(parameters['backwards'][0])
+        returnedEvents = query(client, stream, position, backwards, limit)
         eventsToReturn = []
         for event in returnedEvents:
             metadata = json.loads(event.metadata.decode('utf-8'))
             if 'crdate' in metadata:
                 if int(metadata['crdate']) > (int(time.time()) - (minutes * 60)):
-                    eventsToReturn.append(event)
+                    jsonEvent = {'type': event.type, 'data': json.loads(event.data.decode('utf-8')),
+                                 'metadata': metadata,
+                                 'stream_name': event.stream_name, 'stream_position': event.stream_position,
+                                 'commit_position': event.commit_position}
+                    eventsToReturn.append(jsonEvent)
         x = {"events": eventsToReturn}
         string = json.dumps(x, default=str)
-        string = string.replace(',', '')
         return HttpResponse(string, content_type="application/json")
     x = {"error": "no GET method"}
     string = json.dumps(x, default=str)
