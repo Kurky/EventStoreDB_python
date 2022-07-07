@@ -4,6 +4,8 @@ from django.http import HttpResponse
 import json
 from django.views.decorators.csrf import csrf_exempt
 from .command import createCommand
+from .query import query
+import time
 
 
 def index(request):
@@ -22,7 +24,10 @@ def eventCommand(request):
                 event = events[i]
                 commit_positions = []
                 if 'type' in event and 'data' in event and 'metadata' in event:
-                    commit_position = createCommand(client, parameters['stream_name'], parameters['expected_position'], event['type'], event['data'], event['metadata'])
+                    metadata = event['metadata']
+                    metadata['crdate'] = int(time.time())
+                    commit_position = createCommand(client, parameters['stream_name'], parameters['expected_position'],
+                                                    event['type'], event['data'], metadata)
                     commit_positions.append(commit_position)
                 x = {"commit_positions": commit_positions}
                 string = json.dumps(x, default=str)
@@ -47,6 +52,21 @@ def eventQuery(request):
         # connecting
         client = EsdbClient(uri='localhost:2113')
         # geting_parameters
-        parameters = dict(parse_qs(urlsplit(request.get_raw_uri()).query))
+        parameters = dict(parse_qs(urlsplit(request.get_full_path()).query))
+        minutes = 10
 
-    return HttpResponse("event_query")
+        returnedEvents = query(client, '4d4ef18a-a3ab-46f2-bf9f-31eeb699d5f0', None, True, 100)
+        eventsToReturn = []
+        for event in returnedEvents:
+            metadata = json.loads(event.metadata.decode('utf-8'))
+            if 'crdate' in metadata:
+                if int(metadata['crdate']) > (int(time.time()) - (minutes * 60)):
+                    eventsToReturn.append(event)
+        x = {"events": eventsToReturn}
+        string = json.dumps(x, default=str)
+        string = string.replace(',', '')
+        return HttpResponse(string, content_type="application/json")
+    x = {"error": "no GET method"}
+    string = json.dumps(x, default=str)
+    string = string.replace(',', '')
+    return HttpResponse(string, content_type="application/json")
