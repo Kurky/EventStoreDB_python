@@ -1,0 +1,24 @@
+{% load  static %}
+<link rel="stylesheet" type="text/css" href="{% static '/css/bootstrap.min.css' %}">
+<h1>Events</h1>
+<p>
+    Stream_name: {{stream_name}}
+</p>
+<table class="table table-dark">
+    <thead>
+    <tr>
+        <th scope="col">Type</th>
+        <th scope="col">Price</th>
+        <th scope="col">Count</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for x in events %}
+    <tr>
+        <td>{{ x.type }}</td>
+        <td>{{ x.data.price }}</td>
+        <td>{{ x.data.count }}</td>
+    </tr>
+    {% endfor %}
+    <tbody>
+</table>
