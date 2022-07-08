@@ -17,29 +17,38 @@ def eventCommand(request):
     if request.method == 'POST':
         # connecting
         client = EsdbClient(uri='localhost:2113')
-        parameters = json.loads(request.body)
-        if 'stream_name' in parameters and 'expected_position' in parameters and 'events' in parameters:
-            events = parameters['events']
-            for i in events:
-                event = events[i]
-                commit_positions = []
-                if 'type' in event and 'data' in event and 'metadata' in event:
-                    metadata = event['metadata']
-                    metadata['crdate'] = int(time.time())
-                    commit_position = createCommand(client, parameters['stream_name'], parameters['expected_position'],
-                                                    event['type'], event['data'], metadata)
-                    commit_positions.append(commit_position)
-                x = {"commit_positions": commit_positions}
-                string = json.dumps(x, default=str)
-                string = string.replace(',', '')
-                return HttpResponse(string, content_type="application/json")
+        if request.body:
+            parameters = json.loads(request.body)
+            if 'stream_name' in parameters and 'expected_position' in parameters and 'events' in parameters:
+                events = parameters['events']
+                for i in events:
+                    event = events[i]
+                    commit_positions = []
+                    if 'type' in event and 'data' in event and 'metadata' in event:
+                        metadata = event['metadata']
+                        metadata['crdate'] = int(time.time())
+                        commit_position = createCommand(client, parameters['stream_name'],
+                                                        parameters['expected_position'],
+                                                        event['type'], event['data'], metadata)
+                        commit_positions.append(commit_position)
+                    x = {"commit_positions": commit_positions}
+                    string = json.dumps(x, default=str)
+                    string = string.replace(',', '')
+                    return HttpResponse(string, content_type="application/json")
+                else:
+                    x = {"error": 'bad event json format'}
             else:
-                x = {"error": 'bad event json format'}
+                x = {"error": 'bad stream json format'}
+            string = json.dumps(x, default=str)
+            string = string.replace(',', '')
+            return HttpResponse(string, content_type="application/json")
         else:
-            x = {"error": 'bad stream json format'}
-        string = json.dumps(x, default=str)
-        string = string.replace(',', '')
-        return HttpResponse(string, content_type="application/json")
+            commit_position = createCommand(client, '4d4ef18a-a3ab-46f2-bf9f-31eeb699d5f0', 0, 'OrderCreated',
+                                            {"count": 10, "price": 25}, {"crdate": int(time.time())})
+            x = {"commit_positions": commit_position}
+            string = json.dumps(x, default=str)
+            string = string.replace(',', '')
+            return HttpResponse(string, content_type="application/json")
     else:
         x = {"error": "no POST method"}
         string = json.dumps(x, default=str)
